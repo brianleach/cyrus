@@ -48,6 +48,11 @@ export interface CyrusAgentSession {
 		totalCostUsd?: number;
 		usage?: any;
 		commentId?: string;
+		/** The Linear user who requested/delegated this work */
+		requestor?: {
+			name?: string;
+			email?: string;
+		};
 		procedure?: {
 			procedureName: string;
 			currentSubroutineIndex: number;

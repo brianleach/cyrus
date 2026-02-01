@@ -797,6 +797,7 @@ export class EdgeWorker extends EventEmitter {
 			subroutinePrompt = await this.loadSubroutinePrompt(
 				nextSubroutine,
 				this.config.linearWorkspaceSlug,
+				session.metadata?.requestor,
 			);
 			if (!subroutinePrompt) {
 				// Fallback if loadSubroutinePrompt returns null
@@ -905,6 +906,7 @@ export class EdgeWorker extends EventEmitter {
 			const subroutinePrompt = await this.loadSubroutinePrompt(
 				verificationsSubroutine,
 				this.config.linearWorkspaceSlug,
+				session.metadata?.requestor,
 			);
 
 			if (!subroutinePrompt) {
@@ -1785,6 +1787,7 @@ export class EdgeWorker extends EventEmitter {
 	 * @param issue Linear issue object
 	 * @param repository Repository configuration
 	 * @param agentSessionManager Agent session manager instance
+	 * @param requestor The Linear user who requested/delegated this work (for co-authoring)
 	 * @returns Object containing session details and setup information
 	 */
 	private async createLinearAgentSession(
@@ -1792,6 +1795,7 @@ export class EdgeWorker extends EventEmitter {
 		issue: { id: string; identifier: string },
 		repository: RepositoryConfig,
 		agentSessionManager: AgentSessionManager,
+		requestor?: { name?: string; email?: string },
 	): Promise<AgentSessionData> {
 		// Fetch full Linear issue details
 		const fullIssue = await this.fetchFullIssueDetails(issue.id, repository.id);
@@ -1816,6 +1820,7 @@ export class EdgeWorker extends EventEmitter {
 			issue.id,
 			issueMinimal,
 			workspace,
+			requestor,
 		);
 
 		// Get the newly created session
@@ -2045,12 +2050,18 @@ export class EdgeWorker extends EventEmitter {
 			repository.id,
 		);
 
+		// Extract requestor info for co-authoring commits
+		const requestor = agentSession.creator
+			? { name: agentSession.creator.name, email: agentSession.creator.email }
+			: undefined;
+
 		// Create the session using the shared method
 		const sessionData = await this.createLinearAgentSession(
 			linearAgentActivitySessionId,
 			issue,
 			repository,
 			agentSessionManager,
+			requestor,
 		);
 
 		// Destructure the session data (excluding allowedTools which we'll build with promptType)
@@ -2585,12 +2596,18 @@ export class EdgeWorker extends EventEmitter {
 				false,
 			);
 
+			// Extract requestor info for co-authoring commits
+			const requestor = agentSession.creator
+				? { name: agentSession.creator.name, email: agentSession.creator.email }
+				: undefined;
+
 			// Create the session using the shared method
 			const sessionData = await this.createLinearAgentSession(
 				linearAgentActivitySessionId,
 				issue,
 				repository,
 				agentSessionManager,
+				requestor,
 			);
 
 			// Destructure session data for new session
@@ -5078,6 +5095,7 @@ ${newComment ? `New comment to address:\n${newComment.body}\n\n` : ""}Please ana
 			const subroutinePrompt = await this.loadSubroutinePrompt(
 				currentSubroutine,
 				this.config.linearWorkspaceSlug,
+				input.session.metadata?.requestor,
 			);
 			if (subroutinePrompt) {
 				parts.push(subroutinePrompt);
@@ -5189,6 +5207,7 @@ ${input.userComment}
 	private async loadSubroutinePrompt(
 		subroutine: SubroutineDefinition,
 		workspaceSlug?: string,
+		requestor?: { name?: string; email?: string },
 	): Promise<string | null> {
 		// Skip loading for "primary" - it's a placeholder that doesn't have a file
 		if (subroutine.promptPath === "primary") {
@@ -5215,6 +5234,29 @@ ${input.userComment}
 					/https:\/\/linear\.app\/linear\/profiles\//g,
 					`https://linear.app/${workspaceSlug}/profiles/`,
 				);
+			}
+
+			// Perform requestor template substitution for co-authoring
+			if (requestor) {
+				prompt = prompt.replace(
+					/\{\{requestor_name\}\}/g,
+					requestor.name || "",
+				);
+				prompt = prompt.replace(
+					/\{\{requestor_email\}\}/g,
+					requestor.email || "",
+				);
+				// Build the full co-author line (only if both name and email are present)
+				const coAuthorLine =
+					requestor.name && requestor.email
+						? `Co-Authored-By: ${requestor.name} <${requestor.email}>`
+						: "";
+				prompt = prompt.replace(/\{\{co_author_line\}\}/g, coAuthorLine);
+			} else {
+				// Clear placeholders if no requestor info
+				prompt = prompt.replace(/\{\{requestor_name\}\}/g, "");
+				prompt = prompt.replace(/\{\{requestor_email\}\}/g, "");
+				prompt = prompt.replace(/\{\{co_author_line\}\}/g, "");
 			}
 
 			return prompt;

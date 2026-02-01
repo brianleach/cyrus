@@ -131,6 +131,7 @@ export class AgentSessionManager extends EventEmitter {
 		issueId: string,
 		issueMinimal: IssueMinimal,
 		workspace: Workspace,
+		requestor?: { name?: string; email?: string },
 	): CyrusAgentSession {
 		console.log(
 			`[AgentSessionManager] Tracking Linear session ${linearAgentActivitySessionId} for issue ${issueId}`,
@@ -146,6 +147,7 @@ export class AgentSessionManager extends EventEmitter {
 			issueId,
 			issue: issueMinimal,
 			workspace: workspace,
+			metadata: requestor ? { requestor } : undefined,
 		};
 
 		// Store locally
