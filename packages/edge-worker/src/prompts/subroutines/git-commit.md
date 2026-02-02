@@ -8,32 +8,14 @@ Changelog updates are complete (with PR link included). Now commit all changes a
 - **STAGE all relevant changes** using `git add` (including any changelog updates with PR link)
 - **COMMIT changes** with clear, descriptive commit messages following the project's commit message format
 - Ensure commit history is clean and meaningful
-- Follow the git workflow instructions from the project's CLAUDE.md if present
-- **Include the co-author trailer** in your commit message (see Co-Authoring section below)
+- Follow the git workflow instructions from the project's CLAUDE.md if present{{co_author_bullet}}
 
 ### 2. Push to Remote
 - **PUSH changes** to remote repository
 - Ensure all work is synchronized with the remote repository
 - Verify the push was successful
 
-## Co-Authoring
-
-This work was requested by a user who should be credited as a co-author. Include the following trailer at the end of your commit message (after a blank line):
-
-```
-{{co_author_line}}
-```
-
-Example commit message format:
-```
-feat: Add user authentication flow
-
-Implement login/logout functionality with session management.
-
-{{co_author_line}}
-```
-
-If the co-author line above is empty, skip adding a co-author trailer.
+{{co_author_section}}
 
 ## Important Notes
 

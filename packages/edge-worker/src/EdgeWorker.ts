@@ -5237,26 +5237,33 @@ ${input.userComment}
 			}
 
 			// Perform requestor template substitution for co-authoring
-			if (requestor) {
+			if (requestor?.name && requestor?.email) {
+				const coAuthorLine = `Co-Authored-By: ${requestor.name} <${requestor.email}>`;
+				const coAuthorSection = `## Co-Authoring
+
+This work was requested by a user who should be credited as a co-author. Include the following trailer at the end of your commit message (after a blank line):
+
+\`\`\`
+${coAuthorLine}
+\`\`\`
+
+Example commit message format:
+\`\`\`
+feat: Add user authentication flow
+
+Implement login/logout functionality with session management.
+
+${coAuthorLine}
+\`\`\``;
+				prompt = prompt.replace(/\{\{co_author_section\}\}/g, coAuthorSection);
 				prompt = prompt.replace(
-					/\{\{requestor_name\}\}/g,
-					requestor.name || "",
+					/\{\{co_author_bullet\}\}/g,
+					"\n- **Include the co-author trailer** in your commit message (see Co-Authoring section below)",
 				);
-				prompt = prompt.replace(
-					/\{\{requestor_email\}\}/g,
-					requestor.email || "",
-				);
-				// Build the full co-author line (only if both name and email are present)
-				const coAuthorLine =
-					requestor.name && requestor.email
-						? `Co-Authored-By: ${requestor.name} <${requestor.email}>`
-						: "";
-				prompt = prompt.replace(/\{\{co_author_line\}\}/g, coAuthorLine);
 			} else {
 				// Clear placeholders if no requestor info
-				prompt = prompt.replace(/\{\{requestor_name\}\}/g, "");
-				prompt = prompt.replace(/\{\{requestor_email\}\}/g, "");
-				prompt = prompt.replace(/\{\{co_author_line\}\}/g, "");
+				prompt = prompt.replace(/\{\{co_author_section\}\}/g, "");
+				prompt = prompt.replace(/\{\{co_author_bullet\}\}/g, "");
 			}
 
 			return prompt;

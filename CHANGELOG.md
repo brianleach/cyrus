@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Commits now include co-author attribution for the Linear user who requested the work
+
 ## [0.2.19] - 2026-01-24
 
 ### Fixed
