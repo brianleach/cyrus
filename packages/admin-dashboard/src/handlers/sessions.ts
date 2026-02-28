@@ -9,6 +9,9 @@ export function handleGetSessions(
 		issueId: string;
 		repositoryId: string;
 		isRunning: boolean;
+		issueIdentifier?: string;
+		runnerType?: string;
+		startedAt?: number;
 	}>,
 ) {
 	return async () => {

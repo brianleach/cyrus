@@ -1,11 +1,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { DEFAULT_CONFIG_FILENAME } from "cyrus-core";
+import type { WebhookStats } from "../AdminDashboard.js";
 
 /**
  * GET /api/admin/status — extended status info
  */
-export function handleGetStatus(cyrusHome: string, version?: string) {
+export function handleGetStatus(
+	cyrusHome: string,
+	version?: string,
+	getWebhookStats?: () => WebhookStats,
+) {
 	return async () => {
 		let repoCount = 0;
 		try {
@@ -25,6 +30,11 @@ export function handleGetStatus(cyrusHome: string, version?: string) {
 				uptime: process.uptime(),
 				nodeVersion: process.version,
 				platform: process.platform,
+				webhookStats: getWebhookStats?.() ?? {
+					totalCount: 0,
+					lastTimestamp: null,
+					activeCount: 0,
+				},
 			},
 		};
 	};

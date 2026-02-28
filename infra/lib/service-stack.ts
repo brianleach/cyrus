@@ -122,6 +122,7 @@ export class ServiceStack extends cdk.Stack {
 				NODE_ENV: "production",
 				CYRUS_HOST_EXTERNAL: "true",
 				CYRUS_SERVER_PORT: "3456",
+				LINEAR_DIRECT_WEBHOOKS: "true",
 				...(baseUrl ? { CYRUS_BASE_URL: baseUrl } : {}),
 			},
 			secrets: {
@@ -169,7 +170,7 @@ export class ServiceStack extends cdk.Stack {
 		const service = new ecs.FargateService(this, "Service", {
 			cluster,
 			taskDefinition,
-			desiredCount: 0,
+			desiredCount: 1,
 			vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
 			enableExecuteCommand: true,
 			circuitBreaker: { rollback: true },

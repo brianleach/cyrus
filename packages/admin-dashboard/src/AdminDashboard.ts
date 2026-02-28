@@ -1,3 +1,4 @@
+import type { LogEntry } from "cyrus-core";
 import type { FastifyInstance } from "fastify";
 import { handleGetConfig } from "./handlers/config.js";
 import { handleDashboardPage } from "./handlers/dashboard.js";
@@ -6,9 +7,16 @@ import {
 	handleLinearOAuthCallback,
 	handleLinearOAuthInitiate,
 } from "./handlers/linearOAuth.js";
+import { handleGetLogs } from "./handlers/logs.js";
 import { handleGetSessions } from "./handlers/sessions.js";
 import { handleGetStatus } from "./handlers/status.js";
 import { createAuthPreHandler } from "./middleware.js";
+
+export interface WebhookStats {
+	totalCount: number;
+	lastTimestamp: number | null;
+	activeCount: number;
+}
 
 export interface AdminDashboardOptions {
 	cyrusHome: string;
@@ -17,7 +25,12 @@ export interface AdminDashboardOptions {
 		issueId: string;
 		repositoryId: string;
 		isRunning: boolean;
+		issueIdentifier?: string;
+		runnerType?: string;
+		startedAt?: number;
 	}>;
+	getLogEntries?: (limit?: number, sinceTimestamp?: number) => LogEntry[];
+	getWebhookStats?: () => WebhookStats;
 }
 
 /**
@@ -28,6 +41,7 @@ export interface AdminDashboardOptions {
  *   GET  /api/admin/config                → sanitized config
  *   GET  /api/admin/status                → extended status
  *   GET  /api/admin/sessions              → active sessions
+ *   GET  /api/admin/logs                  → recent log entries
  *   GET  /api/admin/gh-status             → GitHub CLI auth status
  *   POST /api/admin/linear-oauth/initiate → returns Linear authorize URL
  *   GET  /api/admin/linear-oauth/callback → OAuth redirect handler (no auth)
@@ -46,7 +60,13 @@ export class AdminDashboard {
 	 */
 	register(): void {
 		const authPreHandler = createAuthPreHandler();
-		const { cyrusHome, version, getActiveSessions } = this.options;
+		const {
+			cyrusHome,
+			version,
+			getActiveSessions,
+			getLogEntries,
+			getWebhookStats,
+		} = this.options;
 
 		// Dashboard SPA — no Bearer auth (token comes from URL query param / localStorage)
 		this.fastify.get("/admin", handleDashboardPage());
@@ -60,12 +80,17 @@ export class AdminDashboard {
 		this.fastify.get(
 			"/api/admin/status",
 			{ preHandler: authPreHandler },
-			handleGetStatus(cyrusHome, version),
+			handleGetStatus(cyrusHome, version, getWebhookStats),
 		);
 		this.fastify.get(
 			"/api/admin/sessions",
 			{ preHandler: authPreHandler },
 			handleGetSessions(getActiveSessions),
+		);
+		this.fastify.get(
+			"/api/admin/logs",
+			{ preHandler: authPreHandler },
+			handleGetLogs(getLogEntries),
 		);
 		this.fastify.get(
 			"/api/admin/gh-status",

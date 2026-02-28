@@ -55,6 +55,7 @@ Linear needs to send webhooks to your Cyrus instance. Choose one option:
 
 | Option | Best For | Persistence |
 |--------|----------|-------------|
+| [AWS ECS Fargate](./AWS_DEPLOYMENT.md) | Production (AWS) | Permanent URL |
 | [Cloudflare Tunnel](./CLOUDFLARE_TUNNEL.md) | Production | Permanent URL |
 | ngrok | Development/testing | Changes on restart |
 | Public server/domain | VPS or cloud hosting | Permanent URL |

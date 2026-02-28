@@ -1,7 +1,13 @@
 // Logging
 
-export type { ILogger, LogContext } from "./logging/index.js";
-export { createLogger, LogLevel } from "./logging/index.js";
+export type { ILogger, LogContext, LogEntry } from "./logging/index.js";
+export {
+	createLogger,
+	getGlobalLogBuffer,
+	LogBuffer,
+	LogLevel,
+	setGlobalLogBuffer,
+} from "./logging/index.js";
 
 // export { Session } from './Session.js'
 // export type { SessionOptions, , NarrativeItem } from './Session.js'
