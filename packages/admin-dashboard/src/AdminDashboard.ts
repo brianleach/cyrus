@@ -2,6 +2,7 @@ import type { LogEntry } from "cyrus-core";
 import type { FastifyInstance } from "fastify";
 import { handleGetConfig } from "./handlers/config.js";
 import { handleDashboardPage } from "./handlers/dashboard.js";
+import { handleGetEnvStatus } from "./handlers/envStatus.js";
 import { handleGetGhStatus } from "./handlers/ghStatus.js";
 import {
 	handleLinearOAuthCallback,
@@ -42,6 +43,7 @@ export interface AdminDashboardOptions {
  *   GET  /api/admin/status                → extended status
  *   GET  /api/admin/sessions              → active sessions
  *   GET  /api/admin/logs                  → recent log entries
+ *   GET  /api/admin/env-status            → environment variable status
  *   GET  /api/admin/gh-status             → GitHub CLI auth status
  *   POST /api/admin/linear-oauth/initiate → returns Linear authorize URL
  *   GET  /api/admin/linear-oauth/callback → OAuth redirect handler (no auth)
@@ -91,6 +93,11 @@ export class AdminDashboard {
 			"/api/admin/logs",
 			{ preHandler: authPreHandler },
 			handleGetLogs(getLogEntries),
+		);
+		this.fastify.get(
+			"/api/admin/env-status",
+			{ preHandler: authPreHandler },
+			handleGetEnvStatus(),
 		);
 		this.fastify.get(
 			"/api/admin/gh-status",

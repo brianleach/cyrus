@@ -654,16 +654,56 @@ function saveConfig() {
 // ── Environment Page ────────────────────────────────────────────────
 function renderEnv() {
   $page.innerHTML = '';
-  var card = h('div', {className:'card'}, [
-    h('h2', null, 'Environment Variables'),
-    h('div', {id:'env-msg'}),
-    h('p', null, 'Set or update environment variables in the .env file.'),
-    h('br'),
-    h('div', {className:'form-group'}, [h('label', null, 'Variable Name'), h('input', {id:'env-key', placeholder:'ANTHROPIC_API_KEY'})]),
-    h('div', {className:'form-group'}, [h('label', null, 'Value'), h('input', {id:'env-value', type:'password', placeholder:'sk-...'})]),
-    h('button', {onClick: setEnvVar}, 'Save Variable')
-  ]);
-  $page.appendChild(card);
+  $page.appendChild(h('p', {className:'loading'}, 'Loading environment status...'));
+
+  api('/api/admin/env-status').then(function(r) {
+    if (!r.success) { $page.innerHTML = ''; $page.appendChild(msg(r.error, false)); return; }
+    $page.innerHTML = '';
+
+    var vars = r.data.variables || [];
+    var categories = {};
+    vars.forEach(function(v) {
+      if (!categories[v.category]) categories[v.category] = [];
+      categories[v.category].push(v);
+    });
+
+    Object.keys(categories).forEach(function(cat) {
+      var items = categories[cat];
+      var card = h('div', {className:'card'}, [
+        h('h2', null, cat)
+      ]);
+      var tbl = h('table', null, [
+        h('thead', null, h('tr', null, [h('th',null,'Variable'), h('th',null,'Key'), h('th',null,'Status'), h('th',null,'Value')])),
+        h('tbody', null, items.map(function(v) {
+          var statusBadge = v.isSet
+            ? h('span', {className:'badge badge-green'}, 'Set')
+            : h('span', {className:'badge badge-yellow'}, 'Not set');
+          var valueCell = v.value
+            ? h('td', {className:'mono'}, v.value)
+            : h('td', {className:'mono', style:'color:#525252'}, v.isSet ? '********' : '-');
+          return h('tr', null, [
+            h('td', null, v.label),
+            h('td', {className:'mono'}, v.key),
+            h('td', null, statusBadge),
+            valueCell
+          ]);
+        }))
+      ]);
+      card.appendChild(tbl);
+      $page.appendChild(card);
+    });
+
+    // Update form at the bottom
+    var updateCard = h('div', {className:'card'}, [
+      h('h2', null, 'Update Variable'),
+      h('p', null, 'Set or update an environment variable in the .env file. A restart may be required for changes to take effect.'),
+      h('br'),
+      h('div', {className:'form-group'}, [h('label', null, 'Variable Name'), h('input', {id:'env-key', placeholder:'ANTHROPIC_API_KEY'})]),
+      h('div', {className:'form-group'}, [h('label', null, 'Value'), h('input', {id:'env-value', type:'password', placeholder:'sk-...'})]),
+      h('button', {onClick: setEnvVar}, 'Save Variable')
+    ]);
+    $page.appendChild(updateCard);
+  }).catch(function(){});
 }
 
 function setEnvVar() {
@@ -675,7 +715,12 @@ function setEnvVar() {
     method: 'POST',
     body: JSON.stringify({ key: key, value: value })
   }).then(function(r) {
-    toast(r.success ? key + ' saved. Restart may be required.' : (r.error || 'Failed'), r.success);
+    if (r.success) {
+      toast(key + ' saved. Restart may be required.', true);
+      setTimeout(renderEnv, 500);
+    } else {
+      toast(r.error || 'Failed', false);
+    }
   }).catch(function(e) { toast(e.message, false); });
 }
 })();

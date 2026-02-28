@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ─── base ────────────────────────────────────────────────────────────────────
-FROM node:20-slim AS base
+FROM --platform=linux/amd64 node:20-slim AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
