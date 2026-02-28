@@ -1,5 +1,17 @@
 import type { ILogger, LogContext } from "./ILogger.js";
 import { LogLevel } from "./ILogger.js";
+import type { LogBuffer, LogEntry } from "./LogBuffer.js";
+
+// ── Global log buffer (opt-in) ──────────────────────────────────────
+let globalLogBuffer: LogBuffer | null = null;
+
+export function setGlobalLogBuffer(buffer: LogBuffer | null): void {
+	globalLogBuffer = buffer;
+}
+
+export function getGlobalLogBuffer(): LogBuffer | null {
+	return globalLogBuffer;
+}
 
 function formatContext(context: LogContext): string {
 	const parts: string[] = [];
@@ -66,28 +78,43 @@ class Logger implements ILogger {
 		return `[${padded}] [${this.component}]${ctx}`;
 	}
 
+	private pushToBuffer(level: LogEntry["level"], message: string): void {
+		if (globalLogBuffer) {
+			globalLogBuffer.push({
+				timestamp: Date.now(),
+				level,
+				component: this.component,
+				message,
+			});
+		}
+	}
+
 	debug(message: string, ...args: unknown[]): void {
 		if (this.level <= LogLevel.DEBUG) {
 			console.log(`${this.formatPrefix(LogLevel.DEBUG)} ${message}`, ...args);
 		}
+		this.pushToBuffer("DEBUG", message);
 	}
 
 	info(message: string, ...args: unknown[]): void {
 		if (this.level <= LogLevel.INFO) {
 			console.log(`${this.formatPrefix(LogLevel.INFO)} ${message}`, ...args);
 		}
+		this.pushToBuffer("INFO", message);
 	}
 
 	warn(message: string, ...args: unknown[]): void {
 		if (this.level <= LogLevel.WARN) {
 			console.warn(`${this.formatPrefix(LogLevel.WARN)} ${message}`, ...args);
 		}
+		this.pushToBuffer("WARN", message);
 	}
 
 	error(message: string, ...args: unknown[]): void {
 		if (this.level <= LogLevel.ERROR) {
 			console.error(`${this.formatPrefix(LogLevel.ERROR)} ${message}`, ...args);
 		}
+		this.pushToBuffer("ERROR", message);
 	}
 
 	withContext(context: LogContext): ILogger {

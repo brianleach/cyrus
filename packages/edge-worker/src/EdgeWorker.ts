@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { LinearClient } from "@linear/sdk";
+import { AdminDashboard } from "cyrus-admin-dashboard";
 import type {
 	HookCallbackMatcher,
 	HookEvent,
@@ -61,8 +62,10 @@ import {
 	isStopSignalMessage,
 	isUnassignMessage,
 	isUserPromptMessage,
+	LogBuffer,
 	PersistenceManager,
 	resolvePath,
+	setGlobalLogBuffer,
 } from "cyrus-core";
 import { CursorRunner } from "cyrus-cursor-runner";
 import { GeminiRunner } from "cyrus-gemini-runner";
@@ -186,6 +189,9 @@ export class EdgeWorker extends EventEmitter {
 	public repositoryRouter: RepositoryRouter; // Repository routing and selection
 	private gitService: GitService;
 	private activeWebhookCount = 0; // Track number of webhooks currently being processed
+	private totalWebhookCount = 0; // Total webhooks received since startup
+	private lastWebhookTimestamp: number | null = null; // Timestamp of last received webhook
+	private logBuffer: LogBuffer;
 	/** Handler for AskUserQuestion tool invocations via Linear select signal */
 	private askUserQuestionHandler: AskUserQuestionHandler;
 	/** User access control for whitelisting/blacklisting Linear users */
@@ -209,6 +215,8 @@ export class EdgeWorker extends EventEmitter {
 		this.config = config;
 		this.cyrusHome = config.cyrusHome;
 		this.logger = createLogger({ component: "EdgeWorker" });
+		this.logBuffer = new LogBuffer(500);
+		setGlobalLogBuffer(this.logBuffer);
 		this.persistenceManager = new PersistenceManager(
 			join(this.cyrusHome, "state"),
 		);
@@ -640,6 +648,61 @@ export class EdgeWorker extends EventEmitter {
 		);
 		this.logger.info(
 			"           /api/update/repository, /api/test-mcp, /api/configure-mcp",
+		);
+
+		// 3b. Register AdminDashboard (self-hosted admin UI)
+		const adminDashboard = new AdminDashboard(
+			this.sharedApplicationServer.getFastifyInstance(),
+			{
+				cyrusHome: this.cyrusHome,
+				version: this.config.version,
+				getActiveSessions: () => {
+					const sessions: Array<{
+						issueId: string;
+						repositoryId: string;
+						isRunning: boolean;
+						issueIdentifier?: string;
+						runnerType?: string;
+						startedAt?: number;
+					}> = [];
+					for (const [repoId, manager] of this.agentSessionManagers) {
+						for (const session of manager.getActiveSessions()) {
+							const issueId =
+								session.issueContext?.issueId ?? session.issueId ?? "unknown";
+							sessions.push({
+								issueId,
+								repositoryId: repoId,
+								isRunning: session.agentRunner?.isRunning() ?? false,
+								issueIdentifier: session.issueContext?.issueIdentifier,
+								runnerType: session.claudeSessionId
+									? "claude"
+									: session.geminiSessionId
+										? "gemini"
+										: session.codexSessionId
+											? "codex"
+											: session.cursorSessionId
+												? "cursor"
+												: undefined,
+								startedAt: session.createdAt,
+							});
+						}
+					}
+					return sessions;
+				},
+				getLogEntries: (limit?: number, sinceTimestamp?: number) => {
+					return this.logBuffer.getEntries(limit, sinceTimestamp);
+				},
+				getWebhookStats: () => ({
+					totalCount: this.totalWebhookCount,
+					lastTimestamp: this.lastWebhookTimestamp,
+					activeCount: this.activeWebhookCount,
+				}),
+			},
+		);
+		adminDashboard.register();
+		this.logger.info("✅ Admin dashboard registered");
+		this.logger.info(
+			"   Routes: GET /admin, /api/admin/config, /api/admin/status, ...",
 		);
 
 		// 3. Register MCP endpoint for cyrus-tools on the same Fastify server/port
@@ -1930,6 +1993,8 @@ ${taskInstructions}
 	): Promise<void> {
 		// Track active webhook processing for status endpoint
 		this.activeWebhookCount++;
+		this.totalWebhookCount++;
+		this.lastWebhookTimestamp = Date.now();
 
 		// Log verbose webhook info if enabled
 		if (process.env.CYRUS_WEBHOOK_DEBUG === "true") {
